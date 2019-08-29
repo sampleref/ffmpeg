@@ -1,16 +1,30 @@
 FROM ubuntu:16.04
 
+USER root
+
 # install required packages
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
       git-core \
       curl \
+	  checkinstall \
       wget \
-      ex \
       nasm \
       yasm \
       build-essential \
-      libx264-dev \
+	  libass-dev \
+	  libopenjp2-7-dev \
+	  libfreetype6-dev \
+	  libsdl2-dev \
+      libva-dev \
+	  libvdpau-dev \
+      libvorbis-dev \
+      libxcb1-dev \
+      libxcb-shm0-dev \
+      libxcb-xfixes0-dev \
+      pkg-config \
+      texinfo \
+      zlib1g-dev \
       libx265-dev libnuma-dev \
       libvpx-dev \
       libfdk-aac-dev \
@@ -65,8 +79,21 @@ RUN apt-get update && \
       apt-get clean && \
       rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp*
 
-RUN   python3 -m pip install setuptools && \
+
+RUN   pip3 install --upgrade pip && \
+	  python3 -m pip install setuptools && \
       python3 -m pip install meson --upgrade
+
+# Update nasm
+RUN mkdir -p /var/tmp && \
+	chmod 777 -R /var/tmp && \
+	wget http://www.nasm.us/pub/nasm/releasebuilds/2.13.01/nasm-2.13.01.tar.gz && \
+	tar -xvzf nasm-2.13.01.tar.gz && \
+	cd nasm-2.13.01 && \
+	./configure && \
+	make && \
+	make install && \
+	checkinstall --pkgname=nasm --pkgversion="2.13.01" --backup=no --deldoc=yes --fstrans=no --default
 
 # We compile libx264 ourselves in order to have libx264.so
 # provide support for both 8-nit and 10-bit
@@ -78,15 +105,25 @@ RUN git clone https://git.videolan.org/git/x264.git && \
     cd .. && \
     rm -rf x264
 
+
+# LibAOM from AV1 Codec
+RUN mkdir aom && \
+	cd aom && \
+	git clone https://aomedia.googlesource.com/aom && \
+	cmake aom/ -DBUILD_SHARED_LIBS=1 && \
+	make && \
+	checkinstall -y --deldoc=yes
+
 # We compile ffmpeg ourselves as we depend on a patch that should
 # soon land in master for mpeg-2 CC injection support
-RUN git clone https://github.com/FFmpeg/FFmpeg.git && \
+RUN git clone -b n4.2 https://github.com/FFmpeg/FFmpeg.git && \
     cd FFmpeg && \
     ./configure \
       --enable-gpl \
       --enable-libaom \
       --enable-libass \
       --enable-libfdk-aac \
+	  --enable-libopenjpeg \
       --enable-libfreetype \
       --enable-libmp3lame \
       --enable-libopus \
@@ -104,12 +141,14 @@ RUN git clone https://github.com/FFmpeg/FFmpeg.git && \
 
 ### Build grpc and tools
 
+RUN apt-get update && \
+	apt-get install -y automake
+
 # Install GRPC
-RUN git clone -b $(curl -L https://grpc.io/release) https://github.com/grpc/grpc /var/local/git/grpc && \
+RUN git clone -b v1.19.0 https://github.com/grpc/grpc /var/local/git/grpc && \
 	cd /var/local/git/grpc && \
     git submodule update --init && \
     echo "--- installing grpc ---" && \
-	ex -s -c '356i|CPPFLAGS += -Wno-unused-variable' -c x Makefile && \
     make -j$(nproc) && make install && ldconfig && \
 	echo "--- installing protobuf ---" && \
     cd third_party/protobuf && \
