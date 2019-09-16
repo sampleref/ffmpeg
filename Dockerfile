@@ -99,7 +99,7 @@ RUN mkdir -p /var/tmp && \
 # provide support for both 8-nit and 10-bit
 RUN git clone https://git.videolan.org/git/x264.git && \
     cd x264 && \
-    ./configure --prefix=/usr --bit-depth=all --chroma-format=all --enable-pic --enable-shared && \
+    ./configure --prefix=/usr/local --bit-depth=all --chroma-format=all --enable-pic --enable-shared && \
     make -j && \
     make install && \
     cd .. && \
@@ -119,6 +119,9 @@ RUN mkdir aom && \
 RUN git clone -b n4.2 https://github.com/FFmpeg/FFmpeg.git && \
     cd FFmpeg && \
     ./configure \
+      --enable-static \
+      --enable-pic \
+      --enable-shared \
       --enable-gpl \
       --enable-libaom \
       --enable-libass \
@@ -132,7 +135,9 @@ RUN git clone -b n4.2 https://github.com/FFmpeg/FFmpeg.git && \
       --enable-libx264 \
       --enable-libx265 \
       --enable-nonfree \
-    --prefix=/usr && \
+      --enable-muxer=mov \
+      --enable-demuxer=mov \
+    --prefix=/usr/local && \
     make -j && \
     make install && \
     cd .. && \
